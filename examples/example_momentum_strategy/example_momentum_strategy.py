@@ -217,7 +217,7 @@ class NewStrategyInstance:
                           historical_price_data_queue)
 
                     old_block_height = new_block_height
-                    time.sleep(3)
+                    time.sleep(5)
 
             except Exception as ex:
                 print("Got an error: ", str(ex))

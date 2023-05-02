@@ -66,10 +66,10 @@ class TransactionBuild:
         msg = self._create_message_transaction_swap_exact_amount_in(
             routes, token_in, token_out_min_amount)
         tx = Transaction(account=self._account, chain_id="osmosis-1",
-                         gas=300000, protobuf="osmosis")
+                         gas=250000, protobuf="osmosis")
         tx.add_raw_msg(
             msg, type_url="/osmosis.gamm.v1beta1.MsgSwapExactAmountIn")
-        tx.set_fee(amount=5000, denom="uosmo")
+        tx.set_fee(amount=625, denom="uosmo")
         self._client.load_account_data(self._account)
         tx_hash = self._client.broadcast_transaction(transaction=tx)
         return tx_hash
@@ -92,10 +92,10 @@ class TransactionBuild:
         msg = self._create_message_transaction_swap_exact_amount_out(
             routes, token_out, token_in_max_amount)
         tx = Transaction(account=self._account, chain_id="osmosis-1",
-                         gas=300000, protobuf="osmosis")
+                         gas=250000, protobuf="osmosis")
         tx.add_raw_msg(
             msg, type_url="/osmosis.gamm.v1beta1.MsgSwapExactAmountOut")
-        tx.set_fee(amount=5000, denom="uosmo")
+        tx.set_fee(amount=625, denom="uosmo")
         self._client.load_account_data(self._account)
         tx_hash = self._client.broadcast_transaction(transaction=tx)
         return tx_hash
