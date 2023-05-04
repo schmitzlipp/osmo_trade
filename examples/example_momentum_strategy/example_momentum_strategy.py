@@ -204,7 +204,7 @@ class NewStrategyInstance:
                         print("Token Symbol: {}, Amount: {}, Denom: {}".format(
                             token_balance.symbol, token_balance.amount,  token_balance.denom))
 
-                    if 1.002*bid_ask_data.bid >= action_price and not is_long_position:
+                    if Decimal(1.002)*bid_ask_data.bid >= action_price and not is_long_position:
                         print("Go For long Position") # buy osmo with usdc
 
                         routes = [SwapAmountInRoute(
@@ -219,7 +219,7 @@ class NewStrategyInstance:
                             is_long_position = True
                             action_price = bid_ask_data.ask
 
-                    elif 0.998*bid_ask_data.ask <= action_price and is_long_position:
+                    elif Decimal(0.998)*bid_ask_data.ask <= action_price and is_long_position:
                         print("Left long Position") # sell osmo for usdc
 
                         routes = [SwapAmountInRoute(
