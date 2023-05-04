@@ -204,7 +204,7 @@ class NewStrategyInstance:
                         print("Token Symbol: {}, Amount: {}, Denom: {}".format(
                             token_balance.symbol, token_balance.amount,  token_balance.denom))
 
-                    if bid_ask_data.bid > action_price and not is_long_position:
+                    if 1.002*bid_ask_data.bid >= action_price and not is_long_position:
                         print("Go For long Position") # buy osmo with usdc
 
                         routes = [SwapAmountInRoute(
@@ -219,7 +219,7 @@ class NewStrategyInstance:
                             is_long_position = True
                             action_price = bid_ask_data.ask
 
-                    elif bid_ask_data.ask < action_price and is_long_position:
+                    elif 0.998*bid_ask_data.ask <= action_price and is_long_position:
                         print("Left long Position") # sell osmo for usdc
 
                         routes = [SwapAmountInRoute(
@@ -243,7 +243,7 @@ class NewStrategyInstance:
                     #      historical_price_data_queue)
 
                     old_block_height = new_block_height
-                    time.sleep(5)
+                    time.sleep(10)
                     state_dict = {"action_price": float(action_price), "long_position": is_long_position}
                     with open("state_dict.json", "w") as file:
                         json.dump(state_dict, file)
