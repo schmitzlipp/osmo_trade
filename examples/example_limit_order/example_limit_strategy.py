@@ -41,8 +41,12 @@ from osmo_trade import check_dir
 from osmo_trade._pools import Coin, SwapAmountInRoute
 from osmo_trade import DataFeed, HostPort, TransactionBuild, SwapAmountInRoute, Coin, ROOT_DIR, CURR_DIR
 from osmo_trade import create_osmo_wallet, check_dir, grpc_connection, wallet_balance
+from osmo_trade.transaction_read import transaction_success
 from decimal import Decimal
 from dotenv import load_dotenv
+from math import inf
+import json
+#import numpy as np
 
 class NewStrategyInstance:
     def __init__(self, env_file_path: str):
@@ -143,13 +147,13 @@ class NewStrategyInstance:
 
         historical_price_data_queue = list()        # store old block data
         # here you can define how many old block data ypu want to keep as a history
-        historicl_old_block_point = 3
+        historicl_old_block_point = 1
         old_block_height = 0                        # store always last block height
         new_block_height = 0                        # store always latest block height
         # Flag to check whether we have taken a position or not
         is_long_position = False
 
-        print("\nwallet address: ", self.wallet.address)
+        print("\nwallet address: ", self.wallet.address, "\nhttps://www.mintscan.io/osmosis/account/"+self.wallet.address)
 
         # define tx object to broadcast txs.
         tx = TransactionBuild(account=self.wallet, _host_port=self._host_port)
@@ -157,17 +161,32 @@ class NewStrategyInstance:
         # datafeed.get_pool_assets is return the pool assets according to pool id
         # ['ibc/D189335C6E4A68B513C10AB227BF1C1D38C746766278BA3EEB4FB14124F1D858', 'uosmo']
         pool_assets = datafeed.get_pool_assets(pool_id=self.pool_id)
-        print("\nPool assets: ", pool_assets)
+        #print("\nPool assets: ", pool_assets)
 
-        print("\nhistorical_price_data_queue", historical_price_data_queue)
+        #print("\nhistorical_price_data_queue", historical_price_data_queue)
 
         historical_price_data_queue = self.get_multiple_block_bid_ask_data(
             historicl_old_block_point)
 
-        print("\nhistorical_price_data_queue",
-              historical_price_data_queue, len(historical_price_data_queue))
+        #print("\nhistorical_price_data_queue",
+        #      historical_price_data_queue, len(historical_price_data_queue))
+        try:
+            with open("state_dict.json", "r") as file:
+                state_dict = json.load(file)
+                action_price = Decimal(state_dict["action_price"])
+                is_long_position = state_dict["long_position"]
+        except Exception as ex:
+            print(ex)
+            action_price = 0
+            is_long_position = False
+
+        print(action_price, is_long_position)
+        input("Press Enter to continue...")
 
         while True:
+
+            #bid_hist = np.array([s['bid'] for s in historical_price_data_queue])
+            #ask_hist = np.array([s['ask'] for s in historical_price_data_queue])
 
             try:
 
@@ -177,47 +196,57 @@ class NewStrategyInstance:
 
                     all_token_balance = wallet_balance(
                         wallet_address=self.wallet.address, grpc_ob=self._grpc_ob, token_data_json=datafeed._all_token_decimal_data)
-                    print("\n\n*************** New Block Start*************\n\n")
-                    print("Old Height :{}, New Height: {}".format(
-                        old_block_height, new_block_height))
-                    print("bid_ask data::", bid_ask_data)
+                    #print("\n\n*************** New Block Start*************\n\n")
+                    print("\nBlock:", new_block_height, "Bid:", bid_ask_data.bid, "Ask:", bid_ask_data.ask, "Action:", action_price)
+                    #print("bid_ask data::", bid_ask_data)
 
                     for token_balance in all_token_balance:
                         print("Token Symbol: {}, Amount: {}, Denom: {}".format(
                             token_balance.symbol, token_balance.amount,  token_balance.denom))
 
-                    if bid_ask_data.ask > historical_price_data_queue[0]['ask'] and bid_ask_data.ask > historical_price_data_queue[1]['ask'] and bid_ask_data.ask > historical_price_data_queue[2]['ask'] and not is_long_position:
-                        print("Go For long Position")
+                    if bid_ask_data.bid <= Decimal(0.98)*action_price and not is_long_position:
+                        print("Go For long Position") # buy osmo with usdc
 
                         routes = [SwapAmountInRoute(
                             pool_id=self.pool_id, denom=pool_assets[1])]
                         asset_balance = [
                             item for item in all_token_balance if item.denom == pool_assets[0]][0]
                         tx_hash = tx.broadcast_exact_in_transaction(routes=routes, token_in=Coin(amount=Decimal(int( int(asset_balance.amount)*0.8)), denom=pool_assets[0]), slippage=Decimal(0.002), pools=reserve)
-                        print("Transaction Hash: ", tx_hash)
-                        is_long_position = True
+                        print("Transaction Hash: ", tx_hash["hash"], "\nhttps://www.mintscan.io/osmosis/txs/"+tx_hash["hash"])
+                        #logging.info("Go For long Position\nTransaction Hash: %s", str(tx_hash))
+                        time.sleep(10)
+                        if transaction_success(tx_hash["hash"]):
+                            is_long_position = True
+                            action_price = bid_ask_data.ask
 
-                    elif bid_ask_data.ask < historical_price_data_queue[0]['ask'] and bid_ask_data.ask < historical_price_data_queue[1]['ask'] and bid_ask_data.ask < historical_price_data_queue[2]['ask'] and is_long_position:
-                        print("Left long Position")
+                    elif bid_ask_data.ask >= Decimal(1.02)*action_price and is_long_position:
+                        print("Left long Position") # sell osmo for usdc
 
                         routes = [SwapAmountInRoute(
                             pool_id=self.pool_id, denom=pool_assets[0])]
                         asset_balance = [
                             item for item in all_token_balance if item.denom == pool_assets[1]][0]
                         tx_hash = tx.broadcast_exact_in_transaction(routes=routes, token_in=Coin(amount=Decimal(int( int(asset_balance.amount)*0.8)), denom=pool_assets[1]), slippage=Decimal(0.002), pools=reserve)
-                        print("Transaction Hash: ", tx_hash)
-                        is_long_position = False
+                        print("Transaction Hash: ", tx_hash["hash"], "\nhttps://www.mintscan.io/osmosis/txs/"+tx_hash["hash"])
+                        #logging.info("Left long Position\nTransaction Hash: %s ",str(tx_hash))
+                        time.sleep(10)
+                        if transaction_success(tx_hash["hash"]):
+                            is_long_position = False
+                            action_price = bid_ask_data.ask
 
-                    print("\nLong Position:", is_long_position)
+                    print("Long Position:", is_long_position)
                     historical_price_data_queue.append(
                         {'bid': bid_ask_data.bid, 'ask': bid_ask_data.ask, 'block_heigh': new_block_height})
                     historical_price_data_queue.pop(0)
 
-                    print("\nhistorical_price_data_queue",
-                          historical_price_data_queue)
+                    #print("\nhistorical_price_data_queue",
+                    #      historical_price_data_queue)
 
                     old_block_height = new_block_height
-                    time.sleep(5)
+                    time.sleep(10)
+                    state_dict = {"action_price": float(action_price), "long_position": is_long_position}
+                    with open("state_dict.json", "w") as file:
+                        json.dump(state_dict, file)
 
             except Exception as ex:
                 print("Got an error: ", str(ex))
