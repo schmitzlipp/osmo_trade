@@ -152,6 +152,8 @@ class NewStrategyInstance:
         new_block_height = 0                        # store always latest block height
         # Flag to check whether we have taken a position or not
         is_long_position = False
+        # price difference percentage
+        diff = 0.02
 
         print("\nwallet address: ", self.wallet.address, "\nhttps://www.mintscan.io/osmosis/account/"+self.wallet.address)
 
@@ -179,8 +181,6 @@ class NewStrategyInstance:
             print(ex)
             action_price = 0
             is_long_position = False
-
-        print(action_price, is_long_position)
         input("Press Enter to continue...")
 
         while True:
@@ -197,14 +197,20 @@ class NewStrategyInstance:
                     all_token_balance = wallet_balance(
                         wallet_address=self.wallet.address, grpc_ob=self._grpc_ob, token_data_json=datafeed._all_token_decimal_data)
                     #print("\n\n*************** New Block Start*************\n\n")
-                    print("\nBlock:", new_block_height, "Bid:", bid_ask_data.bid, "Ask:", bid_ask_data.ask, "Action:", action_price)
-                    #print("bid_ask data::", bid_ask_data)
+                    if is_long_position:
+                        print("\nBlock:", new_block_height, "\nBid\t", bid_ask_data.bid, "\033[0;33m\nAsk:\t", bid_ask_data.ask, "\033[0;0m")
+                        print("\033[0;32mLimit:\t", Decimal(1+diff)*action_price, "\033[0;0m\nAction:\t", Decimal(1)*action_price)
+                    else:
+                        print("\nBlock:", new_block_height, "\nAsk:\t", bid_ask_data.ask, "\n\033[0;33m\nBid\t", bid_ask_data.bid, "\033[0;0m")
+                        print("\033[0;31mLimit:\t", Decimal(1-diff)*action_price, "\033[0;0m\nAction:\t", Decimal(1)*action_price)
 
                     for token_balance in all_token_balance:
-                        print("Token Symbol: {}, Amount: {}, Denom: {}".format(
-                            token_balance.symbol, token_balance.amount,  token_balance.denom))
+                        #print("Token Symbol: {}, Amount: {}, Denom: {}".format(
+                        #    token_balance.symbol, token_balance.amount,  token_balance.denom))
+                        print("Token Symbol: {}, Amount: {}".format(
+                            token_balance.symbol, token_balance.amount))
 
-                    if bid_ask_data.bid <= Decimal(0.98)*action_price and not is_long_position:
+                    if bid_ask_data.bid <= Decimal(1-diff)*action_price and not is_long_position:
                         print("Go For long Position") # buy osmo with usdc
 
                         routes = [SwapAmountInRoute(
@@ -219,7 +225,7 @@ class NewStrategyInstance:
                             is_long_position = True
                             action_price = bid_ask_data.ask
 
-                    elif bid_ask_data.ask >= Decimal(1.02)*action_price and is_long_position:
+                    elif bid_ask_data.ask >= Decimal(1+diff)*action_price and is_long_position:
                         print("Left long Position") # sell osmo for usdc
 
                         routes = [SwapAmountInRoute(
