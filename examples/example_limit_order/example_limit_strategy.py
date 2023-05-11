@@ -181,7 +181,7 @@ class NewStrategyInstance:
             print(ex)
             action_price = 0
             is_long_position = False
-        input("Press Enter to continue...")
+        #input("Press Enter to continue...")
 
         while True:
 
@@ -256,9 +256,11 @@ class NewStrategyInstance:
 
             except Exception as ex:
                 print("Got an error: ", str(ex))
+                continue
 
 
 # ipdb.set_trace()
-ENV_FILE_DIR = os.path.join(CURR_DIR.replace("examples", "") , "envs/strategy.env")
-strategy_obj = NewStrategyInstance(ENV_FILE_DIR)
-strategy_obj.run_strategy()
+def foo():
+    ENV_FILE_DIR = os.path.join(CURR_DIR.replace("examples", "") , "envs/strategy.env")
+    strategy_obj = NewStrategyInstance(ENV_FILE_DIR)
+    strategy_obj.run_strategy()
